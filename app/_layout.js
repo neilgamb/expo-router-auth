@@ -3,6 +3,7 @@ import { Slot, useRouter, useRootNavigation } from "expo-router";
 import { Amplify } from "aws-amplify";
 
 import useAuth from "../state/auth";
+import Loader from "../components/Loader";
 
 Amplify.configure({
   Auth: {
@@ -17,40 +18,39 @@ export default function Root() {
   const router = useRouter();
   const { getCurrentRoute } = useRootNavigation();
   const { isAuthenticated, isAuthenticating, authenticate } = useAuth();
-
   const [initialRoutePath, setInitialRoutePath] = useState(null);
-  const [initialRouteParams, setInitialRouteParams] = useState(null);
 
   useEffect(() => {
+    console.log("test");
+    const { name, params } = getCurrentRoute();
+
+    setInitialRoutePath(name);
+
     let authCode;
     let animalOwnerSmsNumber;
 
-    if (
-      getCurrentRoute().name !== "loading" &&
-      initialRouteParams &&
-      initialRouteParams.authCode &&
-      initialRouteParams.animalOwnerSmsNumber
-    ) {
-      authCode = initialRouteParams.authCode;
-      animalOwnerSmsNumber = initialRouteParams.animalOwnerSmsNumber;
+    if (params && params.authCode && params.animalOwnerSmsNumber) {
+      authCode = params.authCode;
+      animalOwnerSmsNumber = params.animalOwnerSmsNumber;
     }
 
-    authenticate(authCode, animalOwnerSmsNumber);
-  }, [initialRouteParams]);
+    if (name !== "error" && !isAuthenticated) {
+      authenticate(authCode, animalOwnerSmsNumber);
+    }
+  }, []);
 
   useEffect(() => {
-    const initialRoute = getCurrentRoute();
-    setInitialRoutePath(initialRoute.name);
-    setInitialRouteParams(initialRoute.params);
-
-    if (isAuthenticating) {
-      router.replace("/loading");
-    } else if (!isAuthenticating && isAuthenticated) {
+    if (!isAuthenticating && isAuthenticated) {
       router.replace(initialRoutePath);
-    } else {
+    } else if (!isAuthenticating && !isAuthenticated) {
       router.replace("/error");
     }
   }, [isAuthenticating]);
 
-  return <Slot />;
+  return (
+    <>
+      {isAuthenticating && <Loader />}
+      <Slot />
+    </>
+  );
 }
